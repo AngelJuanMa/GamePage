@@ -40,10 +40,11 @@ function updateSala(req,res){
 }
 
 function getSala(req, res){ 
-    Sala.findOne({num: req.params.num}, (err, sala) => {
-        if(err) return res.status(400).send({message: 'No hay salas aún'});
+    Sala.findOne({num: req.params.num}).populate('master red_1 red_2 blue_1 blue_2').exec((err, sala) => {
+             if(err) return res.status(400).send({message: 'La sala no existe'});
+
         return res.status(200).send({sala});
-    }); 
+    });
 }
 
 function goOutSala(req, res){
@@ -63,10 +64,49 @@ function goOutSala(req, res){
     });
 }
 
+function findUserInSala(req, res) {
+    let userId = req.user.sub;
+
+    Sala.findOne({ $or: [
+        {blue_2: userId},
+        {blue_1: userId},
+        {red_2: userId},
+        {red_1: userId}
+    ]}).exec((err, sala) => {
+        if(err) return res.status({message: 'Error'});
+        else if(!sala) return res.status(200).send({message: 'No te encuentras en ninguna sala jugando'});
+        else return res.status(200).send({sala});
+    })
+}
+
+function getIdentity(userId, res) {
+
+    User.findOne({_id: userId}).exec((err, user) => {
+        if(err)  return res.status(404).send({message: 'No se ha encontrado un Usuario'});
+        
+        return user
+    })
+}
+
+function sendIdentity(req, res){
+    let userId = req.user.sub;
+
+    let error = res.status(404).send({message: 'No se ha encontrado un Usuario'});
+
+    getIdentity(userId ,res).then((err, user) =>{
+        if(err) return error
+        if(!user) return error
+
+        return res.status(200).send({user});
+    })
+}
+
 module.exports = {
     prueba,
     ready,
     updateSala, 
     getSala,
-    goOutSala
+    goOutSala,
+    findUserInSala,
+    sendIdentity
 }

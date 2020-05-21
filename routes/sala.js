@@ -11,6 +11,7 @@ api.post('/ready', md_auth.ensureAuth, SalaController.ready);
 api.put('/updateSala', md_auth.ensureAuth, SalaController.updateSala);
 api.get('/getSala/:num', md_auth.ensureAuth, SalaController.getSala);
 api.put('/goOutSala', md_auth.ensureAuth, SalaController.goOutSala);
+api.get('/findUserInSala', md_auth.ensureAuth, SalaController.findUserInSala);
 
 
 module.exports = api;

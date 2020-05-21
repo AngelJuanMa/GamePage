@@ -19,25 +19,23 @@ async function createSala(req, res){
     var sala = new Sala();
     var body = req.body;
     var userId = req.user.sub;
-    sala.game = "Tateti";
-    if(body.game) sala.game = body.game;
-    sala.password = null;
-    if(body.password) sala.password = body.password;
-    sala.name = "Unete";
-    if(body.name) sala.name = body.name;
+    
+
+    sala.game = body.game;
+    
+    sala.password = body.password;
+
+    if(!body.name) return res.status(400).send({message: 'No se ha ingresado un nombre'});
+    sala.name = body.name;
     sala.master = userId;
     sala.red_1 = userId;
     sala.red_2 = null;
     sala.blue_1 = null;
     sala.blue_2 = null
     sala.redB_1 = true;
-    if(body.redB_2) sala.redB_2 = true;
-    else sala.redB_2 = false;
-    if(body.blueB_1) sala.blueB_1 = true;
-    else sala.blueB_1 = false;
-    if(body.blueB_2) sala.blueB_2 = true;
-    else sala.blueB_2 = false;
-    sala.blueB
+    sala.redB_2 = true;
+    sala.blueB_1 = true;
+    sala.blueB_2 = true;
     sala.num = 1;
     
     var i = 0; 

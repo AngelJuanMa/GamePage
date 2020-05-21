@@ -9,13 +9,13 @@ var UserSchema = Schema({
 		password: String,
 		created_at: String,
 		politics: Boolean,
-		privacity: Boolean,
 		sala: { type: Schema.ObjectId, ref: 'Sala' },
 		game: String,
 		ready: Boolean,
 		pride: { type: Schema.ObjectId, ref: 'Pride' },
 		wins: Number,
-		lose: Number
+		lose: Number,
+		color: String
 });
 
 module.exports = mongoose.model('User', UserSchema);
