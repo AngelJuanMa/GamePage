@@ -9,6 +9,7 @@ var fs = require('fs');
 
 var User = require('../models/user');
 var Gmail = require('../models/gmail');
+var UserConnected = require('../models/userConnected');
 var jwt = require('../services/jwt');
 
 var readHTMLFile = function(path, callback) {
@@ -106,7 +107,6 @@ function userEmailCheck(req, res){
 
 	Gmail.findOne({email: req.body.email}).exec((err, gmail) => {
 		if(err) return res.status(400).send({message: 'Los emails no coinciden'});
-		console.log(req.body.code)
 
 		if(gmail) bcrypt.compare(req.body.code, gmail._doc.codigo, (err, check) => {
 			if(err) return res.status(400).send({message: 'El codigo es incorrecto'})
@@ -137,6 +137,9 @@ function defineUser(req, res){
 	user.politics = req.body.politics
 	user.password = req.body.password
 	user.color = "white";
+	user.color2 = "white";
+	user.color3 = "white";
+	user.deg = 180;
 
 	if(!user.politics) return res.status(400).send({message:'Necesitas confirmar el campo de privacidad.'});
 	if(!user.password) return res.status(400).send({message:'Necesitas completar el campo de la contraseña.'});
@@ -165,68 +168,68 @@ function loginUser(req, res){
 	var email = params.email;
 	var password = params.password;
 	var nick = params.nick;
-if(email.indexOf('@') != -1){
-User.findOne({email: email}, (err, user) => {
-		if(err) return res.status(500).send({message: 'Error en la petición'});
+	if(email.indexOf('@') != -1){
+	User.findOne({email: email}, (err, user) => {
+			if(err) return res.status(500).send({message: 'Error en la petición'});
 
-		if(user){
-			bcrypt.compare(password, user.password, (err, check) => {
-				if(check){
-					
-					if(params.gettoken){
-						//generar y devolver token
-						return res.status(200).send({
-							token: jwt.createToken(user)
-						});
+			if(user){
+				bcrypt.compare(password, user.password, (err, check) => {
+					if(check){
+						
+						if(params.gettoken){
+							//generar y devolver token
+							return res.status(200).send({
+								token: jwt.createToken(user)
+							});
+						}else{
+							//devolver datos de usuario
+							user.password = undefined;
+							return res.status(200).send({user});
+						}
+						
 					}else{
-						//devolver datos de usuario
-						user.password = undefined;
-						return res.status(200).send({user});
+						return res.status(404).send({message: 'El usuario no se ha podido identificar'});
 					}
-					 
-				}else{
-					return res.status(404).send({message: 'El usuario no se ha podido identificar'});
-				}
-			});
-		}else{
-			return res.status(404).send({message: 'El usuario no se ha podido identificar!!'});
-		}
-	});
-}else{
-	User.findOne({nick: nick}, (err, user) => {
-		if(err) return res.status(500).send({message: 'Error en la petición'});
+				});
+			}else{
+				return res.status(404).send({message: 'El usuario no se ha podido identificar!!'});
+			}
+		});
+	}else{
+		User.findOne({nick: nick}, (err, user) => {
+			if(err) return res.status(500).send({message: 'Error en la petición'});
 
-		if(user){
-			bcrypt.compare(password, user.password, (err, check) => {
-				if(check){
-					
-					if(params.gettoken){
-						//generar y devolver token
-						return res.status(200).send({
-							token: jwt.createToken(user)
-						});
+			if(user){
+				bcrypt.compare(password, user.password, (err, check) => {
+					if(check){
+						
+						if(params.gettoken){
+							//generar y devolver token
+							return res.status(200).send({
+								token: jwt.createToken(user)
+							});
+						}else{
+							//devolver datos de usuario
+							user.password = undefined;
+							return res.status(200).send({user});
+						}
+						
 					}else{
-						//devolver datos de usuario
-						user.password = undefined;
-						return res.status(200).send({user});
+						return res.status(404).send({message: 'El usuario no se ha podido identificar'});
 					}
-					
-				}else{
-					return res.status(404).send({message: 'El usuario no se ha podido identificar'});
-				}
-			});
-		}else{
-			return res.status(404).send({message: 'El usuario no se ha podido identificar!!'});
-		}
-	});
-}
+				});
+			}else{
+				return res.status(404).send({message: 'El usuario no se ha podido identificar!!'});
+			}
+		});
+	}
 
 }
 
 function getUsers(req, res){
 	var sala = null;
 
-	User.find({sala: sala}).select({'password': 0}).exec((err, users ) => {
+	UserConnected.find().populate('userId').exec((err, users ) => {
 		if(err) return res.status(500).send({message: 'Error en la petición'});
 		if(!users) return res.status(400).send({message: 'No hay usuarios en el lobby'});
 
@@ -238,7 +241,6 @@ function getUsers(req, res){
 function updateUser(req, res){
 	var userId = req.params.id;
 	var update = req.body;
-	console.log(update)
 
 	// borrar propiedad password
 	delete update.password; 
@@ -248,24 +250,30 @@ function updateUser(req, res){
 		return res.status(500).send({message: 'No tienes permiso para actualizar los datos del usuario'});
 	}
 
-	User.find({nick: update.nick.toLowerCase()}).exec((err, users) => {
+	if(update.deg >= 0 && update.deg <= 360 ){
+		User.find({nick: update.nick.toLowerCase()}).exec((err, users) => {
 		 
-		 	var user_isset = false;
-		 	users.forEach((user) => {
-		 		if(user && user._id != userId) user_isset = true;
-		 	});
-
-		 	if(user_isset) return res.status(404).send({message: 'Los datos ya están en uso'});
-		 	
-		 	User.findByIdAndUpdate(userId, update, {new:true}, (err, userUpdated) => {
-				if(err) return res.status(500).send({message: 'Error en la petición'});
-
-				if(!userUpdated) return res.status(404).send({message: 'No se ha podido actualizar el usuario'});
-
-				return res.status(200).send({user: userUpdated});
+			var user_isset = false;
+			users.forEach((user) => {
+				if(user && user._id != userId) user_isset = true;
 			});
 
-		 });
+			if(user_isset) return res.status(404).send({message: 'El nick ya se encuentra en uso'});
+			
+			User.findByIdAndUpdate(userId, update, {new:true}, (err, userUpdated) => {
+			   if(err) return res.status(500).send({message: 'Error en la petición'});
+
+			   if(!userUpdated) return res.status(404).send({message: 'No se ha podido actualizar el usuario'});
+
+			   return res.status(200).send({user: userUpdated});
+		   });
+
+		});
+	}else{
+		return res.status(400).send({message: 'Los grados deben ser de 0 a 360'});
+	}
+
+	
 
 }
 

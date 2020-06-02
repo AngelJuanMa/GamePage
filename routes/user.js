@@ -12,7 +12,6 @@ api.post('/confirmEmail', UserController.checkUser);
 api.post('/register', UserController.userEmailCheck);
 api.post('/login', UserController.loginUser);
 api.get('/getUsers',  md_auth.ensureAuth, UserController.getUsers);
-api.get('/getUsers',  md_auth.ensureAuth, UserController.getUsers);
 api.put('/update-user/:id', md_auth.ensureAuth, UserController.updateUser);
 
 module.exports = api;

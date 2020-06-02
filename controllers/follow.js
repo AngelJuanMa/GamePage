@@ -1,8 +1,5 @@
 'use strict'
 
-var path = require('path');
-var fs = require('fs');
-
 var User = require('../models/user');
 var Follow = require('../models/follow');
 
@@ -12,42 +9,47 @@ function followRequest(req, res){
 	var follow_request = new Follow_Request();
 	var userId = req.user.sub;
 	var followed = req.body.followed;
-	
-	User.findOne({nick: followed}).exec((err, user) => {
-		if(err) error(res);
-		if(user) followed = user._id;
-		if(userId == user._doc._id) return res.status(400).send({message: 'No puedes agregarte a tí mismo'});
-		if(!followed) return res.status(500).send({message: 'Necesitas enviar el campo del usuario a seguir'});
+	if(!req.body.followed) return error(res, "No has llenado el campo", 400)
+		 
+	User.findOne({nick: followed}).exec((err, userFound) => {
+		if(err || !userFound) return error( res,"No se ha encontrado un usuario",400);
+		followed = userFound._id; 
+		if(userId == userFound._doc._id) return error(res,"No puedes agregarte a tí mismo", 400)
 		
 		follow_request.user = userId;
 		follow_request.followed = followed;
 	
 		// //Comprobar si el usuario ya ha mando una solicitud 
-		Follow_Request.findOne({user: userId, followed: followed}).exec((err, follow) => {
-			if(follow) return res.status(400).send({message: 'No puedes enviar varias solicitudes al mismo usuario'});
-			if(err) error(res);
-	
-			// Comprobar si el usuario ya sigue al usuario
-			Follow.findOne({user: userId, followed:followed}).exec((err,user_f) => {
-				if(user_f) return res.status(400).send({message: 'No puedes enviar una solicitud cuando ya lo has agregado'});
-				if(err) error(res);
-	
-				// Guardar la peticion
-				follow_request.save((err, follow_requestStored) => {
-					if(err) return res.status(500).send({message: 'Error al guardar el seguimiento'});
-					if(!follow_requestStored) return res.status(404).send({message: 'El seguimiento no se ha guardado'});
-			
-					return res.status(200).send({follow_request:follow_requestStored});
+		Follow_Request.findOne({ $or: [
+			{user: userId, followed: followed},
+			{user: followed, followed: userId}
+				]}).exec((err, follow) => {
+
+				if(follow) return error(res, "Ya se ha mandado una solicitud", 400)
+				if(err) return error(res, "Ha sucedido un error en el servidor", 500);
+				// Comprobar si el usuario ya sigue al solicitado
+				Follow.findOne({ $or: [
+					{user: followed, followed: userId},
+					{user: userId, followed: followed}
+						]}).exec((err,user_f) => {
+
+					if(user_f) return error(res, "No puedes enviar una solicitud cuando ya lo has agregado",400)
+					if(err) return error(res,  "Ha sucedido un error en el servidor", 500);
+					// Guardar la peticion
+					follow_request.save((err, follow_requestStored) => {
+						if(err) return error(res,  "Ha sucedido un error al intentar agregar", 500);
+						if(!follow_requestStored) return error(res, "No se ha podido agregar", 500)
+				
+						return res.status(200).send({follow_request:follow_requestStored});
+					});
 				});
-			});
 		});
-		
 	});
 	
 }
 
-function error(res){
-	return res.status(500).send({message: 'Ha ocurrido un error al mandar la solicitud'});
+function error(res, error, status){
+	res.status(status).send({message: error});
 }
 
 function getFollowedUsersRequest(req, res){
@@ -108,10 +110,28 @@ function getFollows(req, res){
 	var userId = req.user.sub;
 
 	Follow.find({'user':userId}).populate('followed').select({'password':0}).exec((err, following)=> {
-		if(err) return res.status(500).send({message: 'Error al obtener follows'});
+		if(!following || err) return res.status(500).send({message: 'Error al obtener follows'});
 
 		Follow.find({'followed':userId}).populate('user').select({'password':0}).exec((err, followed) => {
-			if(err) return res.status(500).send({message: 'Error al obtener follows'});
+			if(!followed || err) return res.status(500).send({message: 'Error al obtener follows'});
+			
+			if(following != null){
+				for (const friend of following) {
+					delete friend._doc.followed._doc.email 
+					delete friend._doc.followed._doc.password 
+					delete friend._doc.followed._doc.created_at
+				}
+			}
+			
+			
+			if(followed != null){
+				for (const friend of followed) {
+					delete friend._doc.user._doc.email
+					delete friend._doc.user._doc.password
+					delete friend._doc.user._doc.created_at
+				}
+			}
+			
 
 			var friends = followed.concat(following);
 			friends.sort(function (a, b) {return a._doc.created_at - b._doc.created_at});
@@ -123,7 +143,6 @@ function getFollows(req, res){
 
 function deleteFollow(req, res){
 	var friend = req.params.friend;
-	console.log(friend);
 
 	Follow.findOne({_id: friend}).remove((err) => {
 		if(err) return res.status(400).send({message: 'No se ha podido eliminar'});

@@ -50,8 +50,7 @@ function getSala(req, res){
 function goOutSala(req, res){
     let userId = req.user.sub
 
-    User.findById(userId).exec((err, user)  =>{   
-        console.log(user);
+    User.findById(userId).exec((err, user)  =>{ 
 
         User.findByIdAndUpdate(userId, {sala: null}, {new:true} , (err, userUpdated) => {
             if(err) return res.status(500).send({message: 'Error en la petición'});
@@ -73,7 +72,7 @@ function findUserInSala(req, res) {
         {red_2: userId},
         {red_1: userId}
     ]}).exec((err, sala) => {
-        if(err) return res.status({message: 'Error'});
+        if(err) return res.status(290).send({message: 'Error'});
         else if(!sala) return res.status(200).send({message: 'No te encuentras en ninguna sala jugando'});
         else return res.status(200).send({sala});
     })

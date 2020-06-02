@@ -15,7 +15,10 @@ var UserSchema = Schema({
 		pride: { type: Schema.ObjectId, ref: 'Pride' },
 		wins: Number,
 		lose: Number,
-		color: String
+		color: String,
+		color2: String,
+		color3: String,
+		deg: Number
 });
 
 module.exports = mongoose.model('User', UserSchema);

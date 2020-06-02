@@ -11,7 +11,7 @@ api.get('/my-messages', md_auth.ensureAuth, MessageController.getReceivedMessage
 api.get('/userMessages/:friend', md_auth.ensureAuth, MessageController.userMessages);
 api.get('/messages', md_auth.ensureAuth, MessageController.getEmmitMessages);
 api.get('/unviewed-messages', md_auth.ensureAuth, MessageController.getUnviewedMessages);
-api.get('/set-viewed-messages', md_auth.ensureAuth, MessageController.setViewedMessages);
+api.put('/set-viewed-messages', md_auth.ensureAuth, MessageController.setViewedMessages);
 
 api.get('/getMessageGeneral/:pride', md_auth.ensureAuth, MessageController.getMessageGeneral);
 

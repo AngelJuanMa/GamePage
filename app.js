@@ -5,6 +5,7 @@ var bodyParser = require('body-parser');
 
 var app = express();
 
+
 // cargar rutas
 var user_routes = require('./routes/user');
 var juego_routes = require('./routes/juego');
@@ -13,6 +14,12 @@ var sala_routes = require('./routes/sala');
 var message_routes = require('./routes/message');
 var follow_routes = require('./routes/follow'); 
 var pride_routes = require('./routes/pride');
+
+// rutas de sockets
+var userSocket_routes = require('./controllers/sockets/user');
+var messageSocket_routes = require('./controllers/sockets/message');
+var prideSocket_router = require('./controllers/sockets/pride');
+var friendsSocket_router = require('./controllers/sockets/friends');
 
 // middlewares
 app.use(bodyParser.urlencoded({extended:false}));
@@ -36,5 +43,6 @@ app.use('/api', sala_routes);
 app.use('/api', message_routes);
 app.use('/api', follow_routes);
 app.use('/api', pride_routes);
+
 // exportar
 module.exports = app;

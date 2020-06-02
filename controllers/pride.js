@@ -10,7 +10,6 @@ async function savePride(req, res){
     pride.name = req.body.name
     pride.master = req.user.sub
 
-    console.log(req.user.pride);
     if(req.user.pride != null) return res.status(400).send({message: 'Ya te encuentras en un clan'})
     if(!req.user.sub || !req.body.name) return res.status(400).send({message: 'No se ha enviado un nombre'})
 
@@ -85,14 +84,14 @@ async function getPrides(req, res){
 
 function applyPride(req, res){
     let prideRequest  = new PrideRequest
-    prideRequest.name = req.body.name.name
+    prideRequest.name = req.body.name
     prideRequest.user = req.user.sub
 
     //El usuario sigue un pride
     if(req.user.pride) return res.status(400).send({message: 'Ya te encuentras en un clan'})
 
     //Existe el pride
-    Pride.findOne({name: req.body.name.name}).exec((err, pride)  =>{
+    Pride.findOne({name: req.body.name}).exec((err, pride)  =>{
         if(err) return res.status(500).send({message: 'Ha occurido un error en el serivor'})
         if(!pride) return res.status(500).send({message: 'No se ha encontrado el clan'})
         
@@ -124,6 +123,11 @@ function getPrideRequests(req, res){
         let name = pride.name
         PrideRequest.find({name : name}).populate('user').exec((err, pridesRequest)  =>{
         if(err) return res.status(500).send({message: 'Ha ocurrido un error en el sistema'})
+
+        for (const prideRequest of pridesRequest) {
+            delete prideRequest._doc.user._doc.password
+            delete prideRequest._doc.user._doc.email
+        }
 
         return res.status(200).send({pridesRequest})
         });
