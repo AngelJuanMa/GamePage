@@ -18,17 +18,17 @@ io.on("connection", socket => {
         socket.join(userId);
 
         socket.on("onFollow", (data) => {
-            User.findOne({_id: data.follow_request.followed}).exec((err, user) =>{
-                if(err || !user) return error(_id,"No se ha encontrado un usuario");
-                if(data.follow_request.user.password) delete data.follow_request.user.password
-                if(data.follow_request.user.email) delete data.follow_request.user.email
+            User.findOne({ _id: data.follow_request.followed }).exec((err, user) => {
+                if (err || !user) return error(_id, "No se ha encontrado un usuario");
+                if (data.follow_request.user.password) delete data.follow_request.user.password
+                if (data.follow_request.user.email) delete data.follow_request.user.email
 
-                User.findOne({_id: data.follow_request.user}).exec((err, userT)  =>{
-                    if(err || !userT) return error(_id,"Hubo un problema en el servidor");
+                User.findOne({ _id: data.follow_request.user }).exec((err, userT) => {
+                    if (err || !userT) return error(_id, "Hubo un problema en el servidor");
 
                     delete userT._doc.password;
                     delete userT._doc.email;
-                    
+
                     socket.broadcast.to(user._doc._id).emit("request", userT);
                 })
             })
@@ -44,7 +44,7 @@ io.on("connection", socket => {
         })
 
         socket.on("writing", (userTo, userFor) => {
- 
+
             socket.broadcast.to(userFor._id).emit("friendWriting", userTo)
         });
 
@@ -53,29 +53,29 @@ io.on("connection", socket => {
             socket.broadcast.to(userFor._id).emit("stopWriting", userTo)
         });
 
-        socket.on("message", (message, emitter) =>{
+        socket.on("message", (message, emitter) => {
 
             var created_at = moment().unix();
             delete emitter.password;
             delete emitter.email;
 
-            socket.broadcast.to(message.receiver._id).emit("newMessage", message, emitter , created_at);
+            socket.broadcast.to(message.receiver._id).emit("newMessage", message, emitter, created_at);
         });
 
-        socket.on("messagesViewed", (user, emitter) =>{
-            
+        socket.on("messagesViewed", (user, emitter) => {
+
             socket.broadcast.to(emitter._id).emit("friendViewedMessages", user)
         });
-    })           
+    })
 });
 
-function error(_id, error){
+function error(_id, error) {
     io.to(_id).emit("error", error);
 }
 
 Http.listen(3003, () => {
     console.log("Listening friends socket at :3003...");
-}); 
+});
 
 var api = express.Router();
 

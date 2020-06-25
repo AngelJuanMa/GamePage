@@ -17,7 +17,11 @@ var SalaSchema = Schema({
     redB_2: Boolean,
     blueB_1: Boolean,
     blueB_2: Boolean,
-    master: { type: Schema.ObjectId, ref: 'User' }
+    master: { type: Schema.ObjectId, ref: 'User' },
+    levelRef: {
+        minLevel: Number,
+        maxLevel: Number
+    }
 });
 
 module.exports = mongoose.model('Sala', SalaSchema);

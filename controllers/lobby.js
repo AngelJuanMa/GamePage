@@ -6,26 +6,34 @@ var jwt = require('../services/jwt');
 var User = require('../models/user');
 var Sala = require('../models/sala');
 
-async function changeState(req, sala){
+async function changeState(req, sala) {
     var userId = req.user.sub;
     var sala = sala;
 
-        await User.findByIdAndUpdate(userId, {sala: sala},{new:true}, (err, userUpdated) => {
-            return userUpdated
-        });
-} 
+    await User.findByIdAndUpdate(userId, { sala: sala }, { new: true }, (err, userUpdated) => {
+        return userUpdated
+    });
+}
 
-async function createSala(req, res){
-    var sala = new Sala();
+async function createSala(req, res) {
     var body = req.body;
+    if (!body.name) return res.status(400).send({ message: 'No se ha ingresado un nombre' });
+    var sala = new Sala();
     var userId = req.user.sub;
-    
-
     sala.game = body.game;
-    
-    sala.password = body.password;
 
-    if(!body.name) return res.status(400).send({message: 'No se ha ingresado un nombre'});
+    if (body.password > 0) sala.password = body.password;
+    else sala.password = null;
+
+    if(body.minLevel) sala.levelRef.minLevel = body.minLevel;
+    else sala.levelRef.minLevel = 1;
+
+    console.log(body)
+
+    if(body.maxLevel) sala.levelRef.maxLevel = body.maxLevel;
+    else sala.levelRef.maxLevel = 6;
+   
+
     sala.name = body.name;
     sala.master = userId;
     sala.red_1 = userId;
@@ -38,149 +46,153 @@ async function createSala(req, res){
     sala.blueB_2 = true;
     sala.num = 1;
     
-    var i = 0; 
+        
+
+
+    //Crea el numero de sala
+    var i = 0;
     var num = 0;
-    while( i == num){
-    ++i;
-    var laSala = await Sala.findOne({num:i}).exec((err, lasSalas) => { 
-        return lasSalas;
-    });
-    if(laSala == null) sala.num = i;
-    else num++;
+    while (i == num) {
+        ++i;
+        var laSala = await Sala.findOne({ num: i }).exec((err, lasSalas) => {
+            return lasSalas;
+        });
+        if (laSala == null) sala.num = i;
+        else num++;
     }
 
-    var checker = await Sala.find({master: userId}).exec((err, lasSalas) => {return lasSalas});
-    if(checker && checker.length >= 1) return res.status(400).send({message: 'Ya te encuentras en una sala'});
-    
+    var checker = await Sala.find({ master: userId }).exec((err, lasSalas) => { return lasSalas });
+    if (checker && checker.length >= 1) return res.status(400).send({ message: 'Ya te encuentras en una sala' });
+
     // Cifra la password
-    if(sala.password != null){
+    if (body.password.length > 0) {
         bcrypt.hash(sala.password, null, null, (err, hash) => {
             sala.password = hash;
-    
-            return registerSala(req, sala,res);
-        });
-    }else{
-        return registerSala(req, sala,res);
-    }
-}  
 
-function registerSala(req,sala,res){
+            return registerSala(req, sala, res);
+        });
+    } else {
+        return registerSala(req, sala, res);
+    }
+}
+
+function registerSala(req, sala, res) {
     sala.save((err, salaStored) => {
-        if(err) return res.status(500).send({message: 'Error en la petición'});
-        if(!salaStored) res.status(404).send({message: 'No se ha registrado el usuario'});
-        changeState(req ,sala.num).then((value)=> {
+        if (err) return res.status(500).send({ message: 'Error en la petición' });
+        if (!salaStored) res.status(404).send({ message: 'No se ha registrado el usuario' });
+        changeState(req, sala.num).then((value) => {
             return res.status(200).send({
                 sala: salaStored,
                 user: value
             });
         });
-    }); 
+    });
 }
 
-async function getSalas(req, res){  
+async function getSalas(req, res) {
     var pagination = 16;
     var page = 1;
     // if(req.params.page) page = req.params.page;
     var ordenar = 'num';
-    if(req.params.ordenar) ordenar = req.params.ordenar;
-    var allSalas = await Sala.find().sort(ordenar).limit(pagination).skip((page - 1 ) * pagination).exec((err, sala) => {
-        if(err) return res.status(400).send({message: 'No hay salas aún'});
+    if (req.params.ordenar) ordenar = req.params.ordenar;
+    var allSalas = await Sala.find().sort(ordenar).limit(pagination).skip((page - 1) * pagination).exec((err, sala) => {
+        if (err) return res.status(400).send({ message: 'No hay salas aún' });
 
         return sala;
-});
+    });
     var allSalas_clean = [];
 
     allSalas.forEach(sala => {
         allSalas_clean.push(sala);
     });
 
-    return res.status(200).send({allSalas_clean}); 
+    return res.status(200).send({ allSalas_clean });
 }
 
 
-async function joinSala(req, res){
+async function joinSala(req, res) {
     var userId = req.user.sub;
     var num = req.params.num;
 
-    var sala = await Sala.findOne({num: num}).exec((err,sala) => {
-        if(err) return res.status(500).send({message: 'Hubo un error mientras se intentaba unir'});
-        else if(!sala) return res.status(404).send({message: 'No se a encontrado la sala'});
+    var sala = await Sala.findOne({ num: num }).exec((err, sala) => {
+        if (err) return res.status(500).send({ message: 'Hubo un error mientras se intentaba unir' });
+        else if (!sala) return res.status(404).send({ message: 'No se a encontrado la sala' });
         else return sala;
-    }); 
+    });
     // preguntar si el usuario ya se encuentra dentro
-    if(sala.red_1 == userId) return error(res);
-    else if(sala.red_2 == userId) return error(res);
-    else if(sala.blue_1 == userId) return error(res);
-    else if(sala.blue_2 == userId) return error(res);
- 
-    //elegir la posicion al entrar
-    if(sala.red_1 == null  && sala.redB_1) sala.red_1 = userId;
-    else if(sala.blue_1 == null && sala.redB_2) sala.blue_1 = userId;
-    else if(sala.red_2 == null  && sala.blueB_1) sala.red_2 = userId;
-    else if(sala.blue_2 == null && sala.blueB_2) sala.blue_2 = userId;
-    else return res.status(500).send({message: 'La sala se encuentra llena'})
+    if (sala.red_1 == userId) return error(res);
+    else if (sala.red_2 == userId) return error(res);
+    else if (sala.blue_1 == userId) return error(res);
+    else if (sala.blue_2 == userId) return error(res);
 
-        //identificar contraseña
-        if(sala.password != null){
+    //elegir la posicion al entrar
+    if (sala.red_1 == null && sala.redB_1) sala.red_1 = userId;
+    else if (sala.blue_1 == null && sala.redB_2) sala.blue_1 = userId;
+    else if (sala.red_2 == null && sala.blueB_1) sala.red_2 = userId;
+    else if (sala.blue_2 == null && sala.blueB_2) sala.blue_2 = userId;
+    else return res.status(500).send({ message: 'La sala se encuentra llena' })
+
+    //identificar contraseña
+    if (sala.password != null) {
         bcrypt.compare(req.body.password, sala.password, (err, check) => {
-            if(check){
+            if (check) {
                 return doJoin(sala, res);
-            }else{
-                    return res.status(404).send({message: 'La contraseña es incorrecta'});
+            } else {
+                return res.status(404).send({ message: 'La contraseña es incorrecta' });
             }
         });
-}else{
-    return doJoin(sala, res);
-}   
+    } else {
+        return doJoin(sala, res);
+    }
 }
 
-function doJoin(sala, res){
-    Sala.findByIdAndUpdate(sala._id, sala,{new:true}, (err, salaUpdated) =>{
-        if(err) return res.status(500).send({message: 'Error en la petición'});
-        else if(!salaUpdated) return res.status(404).send({message: 'No se ha podido actualizar la sala'});
-        
-        return res.status(200).send({sala: salaUpdated});
+function doJoin(sala, res) {
+    Sala.findByIdAndUpdate(sala._id, sala, { new: true }, (err, salaUpdated) => {
+        if (err) return res.status(500).send({ message: 'Error en la petición' });
+        else if (!salaUpdated) return res.status(404).send({ message: 'No se ha podido actualizar la sala' });
+
+        return res.status(200).send({ sala: salaUpdated });
     });
 }
 
-async function joinSalaQuick(req, res){
+async function joinSalaQuick(req, res) {
     var userId = req.user.sub;
     console.log(req.user.sala);
 
-    Sala.find({password: null}).exec((err,salas) => {
-        if(err) return res.status(500).send({message: 'Hubo un error mientras se intentaba unir'});
-        else if(!salas) return res.status(404).send({message: 'No se a encontrado la sala'});
-        
+    Sala.find({ password: null }).exec((err, salas) => {
+        if (err) return res.status(500).send({ message: 'Hubo un error mientras se intentaba unir' });
+        else if (!salas) return res.status(404).send({ message: 'No se a encontrado la sala' });
+
         for (var sala of salas) {
             // preguntar si el usuario ya se encuentra dentro
-            if(sala.red_1 == userId) return error(res);
-            else if(sala.red_2 == userId) return error(res);
-            else if(sala.blue_1 == userId) return error(res);
-            else if(sala.blue_2 == userId) return error(res);
-            
+            if (sala.red_1 == userId) return error(res);
+            else if (sala.red_2 == userId) return error(res);
+            else if (sala.blue_1 == userId) return error(res);
+            else if (sala.blue_2 == userId) return error(res);
+
             //elegir la posicion al entrar
-            if(sala.red_1 == null  && sala.redB_1){ sala.red_1 = userId;break;} 
-            else if(sala.blue_1 == null && sala.redB_2)  {sala.blue_1 = userId; break;}
-            else if(sala.red_2 == null  && sala.blueB_1) { sala.red_2 = userId; break;}
-            else if(sala.blue_2 == null && sala.blueB_2) {sala.blue_2 = userId; break;}
+            if (sala.red_1 == null && sala.redB_1) { sala.red_1 = userId; break; }
+            else if (sala.blue_1 == null && sala.redB_2) { sala.blue_1 = userId; break; }
+            else if (sala.red_2 == null && sala.blueB_1) { sala.red_2 = userId; break; }
+            else if (sala.blue_2 == null && sala.blueB_2) { sala.blue_2 = userId; break; }
         }
 
-        Sala.findByIdAndUpdate(sala._id, sala,{new:true}, (err, salaUpdated) =>{
-            if(err) return res.status(500).send({message: 'Error en la petición'});
-            else if(!salaUpdated) return res.status(404).send({message: 'No se ha podido actualizar la sala'});
+        Sala.findByIdAndUpdate(sala._id, sala, { new: true }, (err, salaUpdated) => {
+            if (err) return res.status(500).send({ message: 'Error en la petición' });
+            else if (!salaUpdated) return res.status(404).send({ message: 'No se ha podido actualizar la sala' });
 
-            User.findByIdAndUpdate(req.user.sub, {sala: sala._id}, {new:true} , (err, userUpdated) => {
-                if(err) return res.status(500).send({message: 'Error en la petición'});
+            User.findByIdAndUpdate(req.user.sub, { sala: sala._id }, { new: true }, (err, userUpdated) => {
+                if (err) return res.status(500).send({ message: 'Error en la petición' });
 
-                return res.status(200).send({sala: salaUpdated, user:userUpdated});
+                return res.status(200).send({ sala: salaUpdated, user: userUpdated });
             });
         });
-    }); 
-    
+    });
+
 }
 
-function error(res){
-    return res.status(400).send({message: 'Ya te encuentras en una sala'});
+function error(res) {
+    return res.status(400).send({ message: 'Ya te encuentras en una sala' });
 }
 
 module.exports = {
